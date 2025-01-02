@@ -1,0 +1,64 @@
+---
+title: "sRNA coverage"
+output: html_document
+date: "18--3-2024"
+---
+
+```{r setup, include=FALSE}
+# Load necessary R packages
+library(ggplot2)  
+library(ggrepel)
+
+# Set the working directory
+setwd("/Users/lfeng/Library/CloudStorage/OneDrive-NorwichBioScienceInstitutes/01.projects/01.PPRsiRNA/02.ath8acc/script/02.Fig.2c/")
+
+# Process data
+data <- read.delim2("Count_of_sRNA.txt", sep = " ", header = FALSE, stringsAsFactors = FALSE)
+data <- data[, !is.na(data[1, ])]  
+names(data) <- c("Start", "Count", "Strand", "Chr", "Acc")  
+data$Count <- abs(as.numeric(data$Count))  
+data$Strand <- "plus" 
+
+# Define accession order
+data <- within(data, Acc <- factor(Acc, levels = c("An-1", "Col-0", "Ct-1", "Cvi-1", "Eri-1", "Kyo-1", "Ler-0", "Sha")))
+with(data, levels(Acc))
+
+# Filter out specific chromosomes
+data <- data[!data$Chr %in% c("Chr6", "Chr7"), ]
+data$Start <- as.numeric(data$Start) / 1000
+data$Count <- abs(log10(as.numeric(data$Count)))
+
+# Process chromosome ID
+cdata <- read.delim2("Chr_list.txt", sep = "\t", header = TRUE, stringsAsFactors = FALSE)
+for (i in 1:nrow(cdata)) {
+  clist <- unique(as.character(cdata[i, ]))
+  clist <- sapply(clist, function(x) {
+    return(gsub(" ", "", x))
+  })
+  data$Chr[data$Chr %in% clist] <- gsub(" ", "", cdata[i, 1])
+}
+
+# Visualize the coverage of coding-transcript derived sRNAs
+p <- ggplot(data, aes(x = data$Start, y = data$Count)) +
+        facet_grid(Acc ~ Chr, scales = "free_x", space = "free_x") +
+        geom_bar(aes(fill = Acc), stat = "identity") +
+        scale_fill_manual(name = "Accession",
+            values = c("An-1" = "#0000FF","Col-0" = "#FFA500","Ct-1" = "#FF0000","Cvi-1" = "#800000",
+                       "Eri-1" = "#000080","Kyo-1" = "#008000","Ler-0" = "#800080","Sha" = "#696969"),
+            guide = guide_legend(keywidth = 0.8, keyheight = 0.8, order = 4)
+        ) +
+        scale_x_continuous(expand = c(0, 0)) +
+        theme(axis.text.x = element_text(size = 15, colour = "black"),
+              axis.text.y = element_text(size = 15, colour = "black")) +
+        xlab("Chromosome position (Mb)") +
+        ylab("Coverage (log10)") +
+        theme_classic() +
+        theme(strip.background = element_rect(colour = "white", fill = "white")) +
+        theme(legend.background = element_rect(fill = NA),
+              legend.title = element_text(size = 12, face = "bold"),
+              legend.text = element_text(size = 10, face = "plain"),
+        )
+
+ggsave(filename = "Coverage_of_sRNA.pdf", plot = p, height = 4, width = 12)
+
+```

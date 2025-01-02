@@ -1,0 +1,136 @@
+---
+title: "similarity&target"
+output: html_document
+date: "18-03-2024"
+---
+
+## import R packages
+
+```{r setup, include=FALSE}
+library(corrplot)
+library(reshape2)
+library(ggplot2)
+library(pheatmap)
+library(stringr)
+library(openxlsx)
+```
+
+
+# Heatmap for the sequence similarity of 95 siRNA-producing PPR homologs
+
+
+```{r cars}
+
+setwd("/Users/lfeng/Library/CloudStorage/OneDrive-NorwichBioScienceInstitutes/01.projects/01.PPRsiRNA/02.ath8acc/script/02.Fig.2/01.seq_similarity")
+
+data <- read.delim2("similarity_matrix.txt", sep = "\t", row.names = 1, header = T, check.names = F)
+data <- round(apply(data, c(1,2), as.numeric), 0)
+
+# Extract gene ID
+gene_id <- data.frame(ID = colnames(data))
+gene_id$Accession <- sapply(gene_id$ID,function(x){
+              x = unlist(strsplit(x,"-"))[1]
+})
+
+# Map Accession to standardized names
+accession_mapping <- c("ATCT" = "Ct-1", "ATCol" = "Col-0", "ATAN" = "An-1", 
+                       "ATERI" = "Eri-1", "ATLER" = "Ler-0", "ATKYO" = "Kyo-1", 
+                       "ATSHA" = "Sha", "ATCVI" = "Cvi-1")
+gene_id$Accession <- accession_mapping[gene_id$Accession]
+rownames(data) <- colnames(data) <- gene_id$ID
+
+data[is.na(data)] <- 100
+gene_id$Class <- "hotspot"
+gene_id$Class[grep("-5G", gene_id$ID)] <- "other"
+
+# Assign PPR group 
+group <- read.delim2("PPR_group.txt", header = T, sep = "\t", check.names = TRUE)
+gene_id$Group <- group$Group[match(gene_id$ID,group$PPR)]
+annotation <- data.frame(ID = gene_id$ID, Accession = gene_id$Accession, 
+                         Class = gene_id$Class, Group = gene_id$Group)
+ann_colors <- list(
+    Class = c("hotspot" = "lightgrey", "other" = "#000000"),
+    Accession = c("An-1"="#0000FF","Col-0"="#FFA500","Ct-1"="#FF0000",
+                  "Cvi-1"="#800000", "Eri-1"="#000080","Kyo-1"="#008000",
+                  "Ler-0"="#800080","Sha"="#696969"),
+    Group = c("G1" = "#BB86D8","G2" = "#62CA6F", "G3" = "orange"))
+
+rownames(annotation) <- annotation$ID
+annotation$ID <- NULL
+
+# Visualize the sequence similarity
+p = pheatmap(data,
+         cluster_rows = TRUE,
+         cluster_cols = TRUE,
+         color = colorRampPalette(colors = c("white","#FFFFBF", "red"))(100),
+         fontsize_row = 3,
+         fontsize_col = 3,
+         annotation_col = annotation, 
+         annotation_row = annotation, 
+         annotation_colors = ann_colors
+    ) 
+
+ggsave(plot = p, file = "sequence_similarity.pdf", width = 8, height = 6)
+
+# Retrieve order of IDs after clustering
+order_ids = p$tree_col$labels[p$tree_col$order]
+```
+
+
+# target score visualization
+
+
+```{r cars}
+
+setwd("/Users/lfeng/Library/CloudStorage/OneDrive-NorwichBioScienceInstitutes/01.projects/01.PPRsiRNA/02.ath8acc/script/02.Fig.2/02.target_score/")
+
+# data process
+temp <- list()
+files <- dir(pattern = "psRNATargetJob")
+for (i in 1:length(files)) {
+  accs <- unlist(strsplit(files[i], "\\."))[2]
+  data <- read.delim2(files[i], sep = "\t", header = TRUE, comment.char = "#", check.names = FALSE)
+  data <- unique(data[, c(1, 2, 3)])
+  temp[[i]] <- data
+}
+temp <- do.call(rbind, temp)
+
+# Sort temp dataframe by 'Expectation' column
+temp <- temp[order(temp$Expectation),]
+temp$ID <- paste(temp$miRNA_Acc., temp$Target_Acc., sep = "%")
+
+# Remove duplicates based on the 'ID' column
+uniID <- unique(temp$ID)
+temp <- temp[match(uniID, temp$ID), ]
+temp <- temp[, c("miRNA_Acc.", "Target_Acc.", "Expectation")]
+temp$ID <- NULL
+
+# Reshape the data to wide format using 'dcast'
+pdata <- dcast(temp, miRNA_Acc. ~ Target_Acc.)
+rownames(pdata) <- pdata$miRNA_Acc.
+pdata$miRNA_Acc. <- NULL
+
+# Convert pdata to numeric 
+pdata <- apply(pdata, c(1, 2), as.numeric)
+pdata[which(is.na(pdata))] <- max(pdata[!is.na(pdata)]) + 2
+pdata <- pdata[, match(order_ids, colnames(pdata))]
+
+rownames(pdata) = c("miR161.1","miR161.2","miR400",
+                    "TAS1a 3'D9(-)","TAS1b 3'D4(-)","TAS1c 3'D10(-)",
+                    "TAS1c 3'D6(-)","TAS2 3'D11(-)","TAS2 3'D12(-)",
+                    "TAS2 3'D6(-)","TAS2 3'D9(-)")
+
+# Create a heatmap plot using pheatmap
+p <- pheatmap(pdata,
+              cluster_rows = TRUE,  # Cluster rows
+              cluster_cols = FALSE, # Do not cluster columns
+              border_color = "white",  # Set border color
+              color = colorRampPalette(colors = c("#162D73", "#E4F0EF", "white"))(100),  # Set color palette
+              fontsize_row = 8,  # Set font size for row labels
+              fontsize_col = 5   # Set font size for column labels
+)
+
+ggsave(plot=p,"target_score.pdf", width= 10, height=3)
+
+
+```

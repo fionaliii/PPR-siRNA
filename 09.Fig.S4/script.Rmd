@@ -1,0 +1,101 @@
+---
+title: "high-impact density"
+output: html_document
+date: "18-03-2024"
+---
+
+## import R libraries
+
+```{r}
+
+library(openxlsx)
+library(ggplot2)
+library(ggsignif)
+library(ggformula)
+library(agricolae)
+library(dplyr)
+library(tibble)
+library(ggalt)
+library(gggenes)
+
+```
+
+
+## Fig.S4a
+
+```{r cars}
+
+# Set the working directory
+setwd("/Users/lfeng/Library/CloudStorage/OneDrive-NorwichBioScienceInstitutes/01.projects/01.PPRsiRNA/02.ath8acc/script/09.Fig.S4/")
+
+# Read the gene locus data
+gene_locus <- read.delim2("AT1G63080_hotspot_locus.txt", sep = "\t", header = TRUE)
+
+# Convert Class to factor with specified levels
+gene_locus$Class <- factor(gene_locus$Class, levels = c("siRNA-PPR", "non-siRNA-PPR", "other"))
+
+# Create the plot
+p <- ggplot(gene_locus, aes(xmin = start, xmax = end, y = molecule, fill = Class, label = gene, forward = direction), color = "grey") +
+  geom_gene_arrow() +
+  facet_wrap(~ molecule, scales = "free", ncol = 1) +
+  scale_fill_manual(values = c("siRNA-PPR" = "red", "non-siRNA-PPR" = "#51AFA8", "other" = "black")) +
+  theme_genes() +
+  ylab("") +
+  geom_gene_label(align = "left") + 
+  theme(legend.position = "none")
+
+# Save the plot
+ggsave(plot = p, filename = "AT1G63080_structure.pdf", height = 4, width = 20)
+
+
+```
+
+## Fig.S4b-4c
+
+```{r cars}
+
+# Set the working directory
+setwd("/Users/lfeng/Library/CloudStorage/OneDrive-NorwichBioScienceInstitutes/01.projects/01.PPRsiRNA/02.ath8acc/script/09.Fig.S4/")
+
+# Read the data from the Excel file
+data <- read.xlsx("siRNA_from_homologs.xlsx", sheet = 2)
+
+# Calculate TPM from Count and Total columns
+data$TPM <- data$Count / data$Total * 1000000
+
+# Remove Count and Total columns
+data$Count <- data$Total <- NULL
+
+# Convert Locus and Class to factors with specified levels
+data$Locus <- factor(data$Locus)
+data$Class <- factor(data$Class, levels = c("Specific", "Overlap"))
+
+# Create the plot
+p <- ggplot(data = data, aes(x = Locus, y = TPM, fill = Class)) +
+  scale_fill_manual(values = c("Specific" = "#B5261D", "Overlap" = "#435F60")) +
+  geom_bar(stat = "identity", color = "black", width = 0.5) +
+  ylab("TPM of siRNAs") +
+  xlab("") + 
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(fill = NA, colour = "black", linewidth = 1),
+    panel.background = element_blank(),
+    axis.text = element_text(colour = "black"),
+    axis.text.x = element_text(colour = "black", angle = 45, hjust = 1, vjust = 1),
+    axis.ticks = element_line(colour = "black")
+  ) +
+  theme(
+    legend.key.size = unit(0.5, 'cm'), 
+    legend.key.height = unit(0.4, 'cm'), 
+    legend.key.width = unit(0.4, 'cm'), 
+    legend.title = element_text(size = 10, face = "plain"), 
+    legend.text = element_text(size = 10, face = "plain")
+  )
+
+# Save the plot
+ggsave(plot = p, filename = "AT1G63080_homologs_siRNA.pdf", height = 3, width = 3)
+
+```
+
+

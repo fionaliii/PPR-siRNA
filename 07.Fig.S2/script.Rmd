@@ -1,0 +1,41 @@
+---
+title: "ggtree-PPR"
+output: html_document
+date: "18-03-2024"
+---
+
+## import R packages
+
+```{r}
+library(ggplot2)
+library(ggseqlogo)
+library(openxlsx)
+```
+
+## Fig.S2
+
+```{r,include=FALSE}
+# Read data from Excel file
+fasta <- read.xlsx("sRNA-trigger-sequence.xlsx")
+
+# Get unique sRNA sequences
+unisRNA <- unique(fasta$sRNA)
+
+# Iterate over each unique sRNA sequence
+for(i in 1:length(unisRNA)){
+  
+  # Subset data for the current sRNA sequence
+  pdata <- fasta$Sequence[fasta$sRNA == unisRNA[i]]
+  
+  # Create ggplot object with geom_logo
+  p <- ggplot() + 
+    geom_logo(pdata) + theme_logo() + theme_classic() +
+    scale_x_continuous(breaks = seq(0, 21, by = 3), expand = c(0.01, 0))
+  
+  # Define output file name
+  wrfile <- paste(unisRNA[i], ".pdf", sep = "")
+  
+  # Save plot as PDF file
+  ggsave(plot = p, wrfile, height = 1.2, width = 4.3)
+}
+```

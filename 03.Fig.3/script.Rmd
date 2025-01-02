@@ -1,0 +1,239 @@
+---
+title: "nucleotide_diversity"
+output:
+  html_document: default
+  pdf_document: default
+date: "18-03-2024"
+---
+
+## import R packages
+
+```{r}
+library(tidyverse)
+library(ape)
+library(PopGenome)
+library(adegenet)
+library(ggsignif)
+library(openxlsx)
+library(ggformula)
+library(emmeans)
+library(multcomp)
+library(multcompView)
+library(car)
+library(agricolae)
+```
+
+
+```{r}
+path = "/Users/lfeng/Library/CloudStorage/OneDrive-NorwichBioScienceInstitutes/01.projects/01.PPRsiRNA/02.ath8acc/script/03.Fig.3/01.Fig.3a-b/"
+setwd(path)
+
+# Read data from files
+prot_temp <- read.delim2("all_gene.stat.txt", row.names = 1, header = TRUE, sep = "\t")
+ppr_class <- read.delim2("PPR_class.txt", sep = "\t", header = TRUE)
+nlr_class <- read.delim2("NLR_class.txt", sep = "\t", header = TRUE)
+
+# process PPR data
+ppr_temp <- prot_temp[match(ppr_class$ID, rownames(prot_temp)), ]
+ppr_temp$Class <- ppr_class$Class[match(rownames(ppr_temp), ppr_class$ID)]
+ppr_temp$ID <- rownames(ppr_temp)
+
+# process NLR data
+nlr_temp <- prot_temp[match(nlr_class$ID, rownames(prot_temp)), ]
+nlr_temp$Class <- nlr_class$Class[match(rownames(nlr_temp), nlr_class$ID)]
+nlr_temp$Class[is.na(nlr_temp$Class)] <- "non-siRNA-NLR"
+nlr_temp$ID <- rownames(nlr_temp)
+
+# process all protein
+prot_temp$Class <- "all-protein"
+prot_temp$ID <- rownames(prot_temp)
+
+
+## STEP2: generate random data  
+
+# Create empty matrices 
+ran_pi <- ran_Tajima.D <- ran_theta <- ran_dis <- ran_dN <- ran_dS <- ran_dNdS <- matrix(0, nrow = 500, ncol = 1000)
+
+# Generate random data 
+for (i in 1:1000) {
+  ran_ids <- sample(1:nrow(prot_temp), 500, replace = FALSE)
+  ran_pi[, i] <- prot_temp$Pi[ran_ids]
+  ran_Tajima.D[, i] <- prot_temp$Tajima.D[ran_ids]
+  ran_theta[, i] <- prot_temp$theta_Watterson[ran_ids]
+  ran_dis[, i] <- prot_temp$Distance[ran_ids]
+}
+
+ran_pi <- apply(ran_pi, c(1, 2), as.numeric)
+ran_Tajima.D <- apply(ran_Tajima.D, c(1, 2), as.numeric)
+ran_theta <- apply(ran_theta, c(1, 2), as.numeric)
+ran_dis <- apply(ran_dis, c(1, 2), as.numeric)
+
+ran_temp <- data.frame(
+  Pi = apply(ran_pi, 1, function(x) median(na.omit(x))),
+  Tajima.D = apply(ran_Tajima.D, 1, function(x) median(na.omit(x))),
+  theta_Watterson = apply(ran_theta, 1, function(x) median(na.omit(x))),
+  Distance = apply(ran_dis, 1, function(x) median(na.omit(x))),
+  Class = "random",
+  ID = "ID"
+)
+
+pdata <- rbind(ppr_temp, nlr_temp)
+pdata <- rbind(pdata, ran_temp)
+
+level <- c("HS-siRNA-PPR", "non-HS-siRNA-PPR", "non-siRNA-PPR", "siRNA-NLR", "non-siRNA-NLR", "random")
+pdata$Class <- factor(pdata$Class, levels = level)
+
+```
+
+## Fig.3a
+
+```{r}
+
+pdata$Pi <- as.numeric(pdata$Pi)
+
+test <- kruskal(pdata$Pi, pdata$Class, group = TRUE, p.adj = "bonferroni", alpha = 0.05)
+
+t_comp <- test$means %>%  
+    rownames_to_column(var = "group") %>%  
+    rename(Pi = pdata.Pi) %>%  
+    as_tibble() %>%  
+    left_join(as_tibble(test$groups), by = c("rank" = "pdata$Pi"))  
+
+t_comp$group <- factor(t_comp$group, levels = level)
+
+# A tibble: 6 × 11
+#   group                 Pi  rank      std     r      Min     Max     Q25     Q50     Q75 groups
+#   <chr>              <dbl> <dbl>    <dbl> <int>    <dbl>   <dbl>   <dbl>   <dbl>   <dbl> <chr> 
+# 1 HS-siRNA-PPR     0.0349  1004. 0.0231      14 0.000541 0.0817  0.0146  0.0370  0.0465  a     
+# 2 non-HS-siRNA-PPR 0.0235  1004. 0.0204       4 0.00574  0.0461  0.00648 0.0210  0.0380  a     
+# 3 non-siRNA-NLR    0.0232   864. 0.0290     162 0        0.155   0.00452 0.0131  0.0296  a     
+# 4 non-siRNA-PPR    0.00487  492. 0.00709    457 0        0.0770  0.00114 0.00231 0.00611 b     
+# 5 random           0.00267  533. 0.000172   500 0.00221  0.00320 0.00253 0.00266 0.00280 b     
+# 6 siRNA-NLR        0.0146   640. 0.0162       4 0.00146  0.0355  0.00190 0.0107  0.0235  ab  
+
+p1 <- pdata %>% 
+  ggplot(aes(x = Class, y = Pi)) + 
+  geom_boxplot(aes(fill = Class), outlier.size = -1, width = 0.3) +
+  geom_jitter(aes(group = Class), color = "black", size = 0.3, 
+              position = position_jitter(width = 0.2), alpha = 0.2) +
+  scale_fill_manual(
+    values = c(
+      "HS-siRNA-PPR" = "#9E4231",
+      "non-HS-siRNA-PPR" = "#30669B",
+      "non-siRNA-PPR" = "#C6833F",
+      "siRNA-NLR" = "#008073",
+      "non-siRNA-NLR" = "#7C7CB1",
+      "random" = "#787C7E"
+    )
+  ) +
+  ylim(c(0, 0.12)) +
+  ylab("Nucleotide diversity, Pi") +
+  xlab("") + 
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(fill = NA, colour = "black", linewidth = 1),
+    panel.background = element_blank(),
+    axis.text = element_text(colour = "black"),
+    axis.text.x = element_text(colour = "black", angle = 45, hjust = 1, vjust = 1),
+    axis.ticks = element_line(colour = "black")
+  ) +
+  theme(
+    legend.key.size = unit(0.5, 'cm'), 
+    legend.key.height = unit(0.4, 'cm'), 
+    legend.key.width = unit(0.4, 'cm'), 
+    legend.title = element_text(size = 12, face = "bold"), 
+    legend.text = element_text(size = 10, face = "plain")
+  )
+
+ggsave(p1, file = "plot-pi-boxplot.pdf", width = 4.8, height = 3)
+
+```
+
+## Fig.3b
+
+```{r}
+
+p1 <- gf_histogram(~ Pi | Class, alpha = 0.2, data = pdata, bins = 30) %>%
+  gf_freqpoly(~ Pi, data = pdata, color = ~ Class, size = 1) +
+  facet_wrap(~ Class, scales = "free_y", nrow = 1) +
+  scale_colour_manual(
+    values = c(
+      "HS-siRNA-PPR" = "#9E4231",
+      "non-HS-siRNA-PPR" = "#30669B",
+      "non-siRNA-PPR" = "#C6833F",
+      "siRNA-NLR" = "#008073",
+      "non-siRNA-NLR" = "#7C7CB1",
+      "random" = "#787C7E"
+    )
+  ) +
+  scale_x_continuous(limits = c(0, 0.15), breaks = seq(0, 0.15, 0.03)) +
+  xlab("Nucleotide diversity, Pi") +
+  ylab("Loci Number") +
+  theme_bw() +
+  theme(
+    panel.grid = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    axis.line = element_line(size = 0.4, colour = "black"),
+    axis.text = element_text(colour = "black", size = 8),
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+    axis.ticks = element_line(colour = "black")
+  ) +
+  theme(legend.position = "none") +
+  theme(strip.background = element_rect(colour = "white", fill = "white"))
+
+ggsave(p1, file = "plot-pi-density.pdf", width = 10, height = 2)
+
+```
+
+
+## Fig.3c
+
+```{r}
+
+# Set the working directory
+path <- "/Users/lfeng/Library/CloudStorage/OneDrive-NorwichBioScienceInstitutes/01.projects/01.PPRsiRNA/02.ath8acc/script/03.Fig.3/02.Fig.3c/"
+setwd(path)
+
+# Read the PPR class data
+ppr_class <- read.delim2("../01.Fig.3a-b/PPR_class.txt", sep = "\t", header = TRUE)
+
+# Read and process the data
+uni_data <- read.delim2("summary_uni_ppr.nlr.tas_siRNA.txt", sep = "\t", header = TRUE)
+uni_data$TPM <- as.numeric(uni_data$TPM) / 10000
+uni_data <- aggregate(as.numeric(uni_data$TPM), list(uni_data$Loci, uni_data$Accession), mean)
+names(uni_data) <- c("Class", "Accession", "Ratio")
+uni_data$Class[which(uni_data$Class == "siRNA-RFL")] <- "PPR"
+uni_data$Class[which(uni_data$Class == "siRNA-NLR")] <- "NLR"
+uni_data$Class <- factor(uni_data$Class, levels = c("PPR", "NLR", "TAS"))
+uni_data$Accession <- factor(uni_data$Accession)
+uni_data$Ratio <- as.numeric(uni_data$Ratio)
+
+# Perform Kruskal-Wallis test
+test <- kruskal(uni_data$Ratio, uni_data$Class, group = TRUE, p.adj = "bonferroni", alpha = 0.05)
+
+# Create boxplot with jittered points
+p <- ggplot(uni_data, aes(x = Class, y = Ratio)) + 
+  geom_boxplot(color = "black", outlier.shape = NA) +
+  geom_jitter(aes(group = Class, color = Accession), size = 2, na.rm = FALSE, position = position_jitter(width = 0.21)) +
+  scale_colour_manual(values = alpha(c("An-1" = "#0000FF", "Col-0" = "#FFA500", "Ct-1" = "#FF0000",
+                                       "Cvi-1" = "#800000", "Eri-1" = "#000080", "Kyo-1" = "#008000",
+                                       "Ler-0" = "#800080", "Sha" = "#696969"), 0.8)) +
+  labs(y = "Ratio of unique siRNAs (%)", x = NULL) +
+  ylim(c(0, 1)) +
+  theme(strip.background = element_blank(), strip.text.x = element_text(face = "italic"),
+        axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.border = element_rect(fill = NA, colour = "black", linewidth = 1),
+        panel.background = element_blank(), axis.text = element_text(colour = "black"),
+        axis.ticks = element_line(colour = "black"),
+        legend.key = element_rect(fill = "transparent", colour = "transparent"),
+        legend.key.size = unit(0.5, 'cm'), legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), legend.title = element_text(size = 10, face = "plain"),
+        legend.text = element_text(size = 10, face = "plain")
+       )
+
+# Save the plot
+ggsave(plot = p, file = "ratio_unique_siRNA.pdf", width = 3.5, height = 2.3)
+```

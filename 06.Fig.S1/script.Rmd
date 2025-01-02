@@ -1,0 +1,359 @@
+---
+title: "ggtree-PPR"
+output: html_document
+date: "18-03-2024"
+---
+
+## import R packages
+
+```{r}
+library(ggplot2)
+library(reshape)
+library(ggpmisc)
+library(tibble)
+library(ggpubr)
+library(dplyr)
+library(openxlsx)
+```
+
+## Fig.S1a
+
+```{r,include=FALSE}
+setwd("/Users/lfeng/Library/CloudStorage/OneDrive-NorwichBioScienceInstitutes/01.projects/01.PPRsiRNA/02.ath8acc/script/01.Fig.S1")
+
+# Read the data from the text file
+data <- read.delim2("summary.all.clean.txt", sep=" ", header=F, stringsAsFactors=F)
+
+# Initialize an empty vector
+temp <- c()
+
+# Add a new column to the data frame for library
+data$lib <- ""
+
+# Iterate through each row of the data
+for(i in 1:nrow(data)) {
+  # Check for patterns in the first column and assign library names accordingly
+  if(length(grep("An", data[i,1]))) {data[i,6] <- "An-1"}
+  if(length(grep("Col", data[i,1]))) {data[i,6] <- "Col-0"}
+  if(length(grep("Ct", data[i,1]))) {data[i,6] <- "Ct-1"}
+  if(length(grep("Cvi", data[i,1]))) {data[i,6] <- "Cvi-1"}
+  if(length(grep("Eri", data[i,1]))) {data[i,6] <- "Eri-1"}
+  if(length(grep("Kyo", data[i,1]))) {data[i,6] <- "Kyo-1"}
+  if(length(grep("Ler", data[i,1]))) {data[i,6] <- "Ler-0"}
+  if(length(grep("Sha", data[i,1]))) {data[i,6] <- "Sha"}
+  
+  # Calculate ratio for each row
+  all_ratio <- sapply(data[i,4], function(x) {
+    aa <- unlist(strsplit(x, ";"))
+    aa <- as.numeric(aa)
+    aa <- aa / sum(aa)
+  })
+  
+  # Calculate size for each row
+  all_size <- sapply(data[i,3], function(x) {
+    aa <- unlist(strsplit(x, ";"))
+    aa <- as.numeric(aa)
+  })
+  
+  # Create a data frame with calculated values
+  res <- data.frame(acc=data[i,1], ratio=as.numeric(all_ratio), size=as.numeric(all_size), library=data[i,6])
+  
+  # Combine results into a single data frame
+  if(length(temp) == 0) {
+    temp <- res
+  } else {
+    temp <- rbind(temp, res)
+  }
+}
+
+# Define a function to calculate summary statistics
+data_summary <- function(data, varname, groupnames) {
+  require(plyr)
+  summary_func <- function(x, col) {
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      sd = sd(x[[col]], na.rm=TRUE))
+  }
+  data_sum <- ddply(data, groupnames, .fun=summary_func, varname)
+  return(data_sum)
+}
+
+# Calculate summary statistics for ratio grouped by library and size
+df2 <- data_summary(temp, varname="ratio", groupnames=c("library", "size"))
+
+# Rename columns
+names(df2) <- c("Accession", "Size", "Percentage", "sd")
+
+# Convert Size to a factor
+df2$Size <- factor(df2$Size)
+
+# Convert Percentage to percentage format
+df2$Percentage <- df2$Percentage * 100
+
+# Generate plot
+p <- ggplot(df2, aes(x=Size, y=Percentage, group=Accession)) + 
+  geom_line(aes(color=Accession), size=1) +
+  geom_point(aes(color=Accession), size=1) + 
+  scale_color_manual(values=alpha(c("An-1"="#0000FF", "Col-0"="#FFA500", "Ct-1"="#FF0000",
+                             "Cvi-1"="#800000", "Eri-1"="#000080", "Kyo-1"="#008000",
+                             "Ler-0"="#800080", "Sha"="#696969"), 0.8))+
+  ylim(c(0, 40)) +
+  scale_x_discrete(breaks=c(18:28),
+                   labels=c(18:28)) +
+  labs(x="sRNA length (nucleotide, nt)", y="Percentage (%)") +
+  theme(strip.background = element_blank(),
+         strip.text.x = element_text(face="italic")) +
+  theme_classic() +
+  theme(legend.key = element_rect(colour=NA, fill=NA),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.text = element_text(colour="black"),
+        axis.ticks = element_line(colour="black")) +
+  theme(legend.key.size = unit(0.5, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=10, face="plain"), 
+        legend.text = element_text(size=10, face="plain"))
+
+# Save plot as PDF file
+ggsave(plot=p, file="size_distribution_of_sRNAs.pdf", width=4.6, height=2.6)
+
+```
+
+## Fig.S1b
+
+```{r}
+
+# Read the data from the text file
+data <- read.delim2("summary.ppr-siRNA_distri.txt", sep=" ", header=F, stringsAsFactors=F)
+
+# Initialize an empty vector
+temp <- c()
+
+# Add a new column to the data frame for library
+data$lib <- ""
+
+# Iterate through each row of the data
+for(i in 1:nrow(data)) {
+  # Check for patterns in the first column and assign library names accordingly
+  if(length(grep("An", data[i,1]))) {data[i,6] <- "An-1"}
+  if(length(grep("Col", data[i,1]))) {data[i,6] <- "Col-0"}
+  if(length(grep("Ct", data[i,1]))) {data[i,6] <- "Ct-1"}
+  if(length(grep("Cvi", data[i,1]))) {data[i,6] <- "Cvi-1"}
+  if(length(grep("Eri", data[i,1]))) {data[i,6] <- "Eri-1"}
+  if(length(grep("Kyo", data[i,1]))) {data[i,6] <- "Kyo-1"}
+  if(length(grep("Ler", data[i,1]))) {data[i,6] <- "Ler-0"}
+  if(length(grep("Sha", data[i,1]))) {data[i,6] <- "Sha"}
+  
+  # Calculate ratio for each row
+  all_ratio <- sapply(data[i,4], function(x) {
+    aa <- unlist(strsplit(x, ";"))
+    aa <- as.numeric(aa)
+    aa <- aa / sum(aa)
+  })
+  
+  # Calculate size for each row
+  all_size <- sapply(data[i,3], function(x) {
+    aa <- unlist(strsplit(x, ";"))
+    aa <- as.numeric(aa)
+  })
+  
+  # Create a data frame with calculated values
+  res <- data.frame(acc=data[i,1], ratio=as.numeric(all_ratio), size=as.numeric(all_size), library=data[i,6])
+  
+  # Combine results into a single data frame
+  if(length(temp) == 0) {
+    temp <- res
+  } else {
+    temp <- rbind(temp, res)
+  }
+}
+
+# Define a function to calculate summary statistics
+data_summary <- function(data, varname, groupnames) {
+  require(plyr)
+  summary_func <- function(x, col) {
+    c(mean = mean(x[[col]], na.rm=TRUE),
+      sd = sd(x[[col]], na.rm=TRUE))
+  }
+  data_sum <- ddply(data, groupnames, .fun=summary_func, varname)
+  return(data_sum)
+}
+
+# Calculate summary statistics for ratio grouped by library and size
+df2 <- data_summary(temp, varname="ratio", groupnames=c("library", "size"))
+
+# Rename columns
+names(df2) <- c("Accession", "Size", "Percentage", "sd")
+
+# Convert Size to a factor
+df2$Size <- factor(df2$Size)
+
+# Convert Percentage to percentage format
+df2$Percentage <- df2$Percentage * 100
+
+# Generate bar plot
+p <- ggplot(df2, aes(x=Size, y=Percentage, fill=Accession)) +
+  geom_bar(stat="identity", position=position_dodge(0.9), width=0.9, size=0.2) +
+  scale_fill_manual(values=alpha(c("An-1"="#0000FF", "Col-0"="#FFA500", "Ct-1"="#FF0000",
+                             "Cvi-1"="#800000", "Eri-1"="#000080", "Kyo-1"="#008000",
+                             "Ler-0"="#800080", "Sha"="#696969"), .8))+
+  ylim(c(0, 80)) + 
+  scale_x_discrete(breaks=c(18:28), labels=c(18:28))+
+  labs(x="PPR-siRNA length (nucleotide, nt)", y="Percentage (%)")+
+  theme(strip.background = element_blank(),
+         strip.text.x = element_text(face="italic"))+
+  theme_classic()+
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank(),
+    axis.text=element_text(colour="black"),
+    axis.ticks=element_line(colour = "black")
+  )+
+  theme(legend.key.size = unit(0.5, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size=10,face="plain"), 
+        legend.text = element_text(size=10,face="plain"))
+
+# Print the plot
+p
+
+# Save plot as PDF file
+ggsave(plot=p, file="Size_distribution_of_PPR-siRNA.pdf", width=4.6, height=2.6)
+
+```
+
+
+## Fig.S1c
+
+```{r}
+
+# Read the data from the tab-separated file
+data <- read.delim2("variations.txt", sep="\t", header=T, check.names=F)
+
+# Convert columns to factors with specified levels
+data$Class <- factor(data$Class, levels=c("siRNA-PPR", "non-siRNA-PPR"))
+data$Accession <- factor(data$Accession, levels=c("An-1", "Col-0", "Ct-1", "Cvi-1", "Eri-1", "Kyo-1", "Ler-0", "Sha"))
+data$Homolog <- factor(data$Homolog, levels=c("1", ">1"))
+
+# Convert Ratio column to numeric
+data$Ratio <- as.numeric(data$Ratio)
+
+# Create a ggplot object
+p <- ggplot(data, aes(x=Accession, y=Ratio, fill=Homolog)) +
+  
+  # Create bar plot
+  geom_bar(stat="identity", width=0.6, position="stack", color='black') +     
+  
+  # Create facet grid based on Class column
+  facet_grid(~ Class) + 
+  
+  # Set manual fill colors for Homolog levels
+  scale_fill_manual(values=c(">1"="#EE6666", "1"="grey")) +
+  
+  # Set y-axis breaks and labels
+  scale_y_continuous(breaks=c(0, 0.25, 0.5, 0.75, 1),
+                     labels=c("0", "25", "50", "75", "100")) +
+  
+  # Set axis labels
+  labs(x="", y="Percentage (%)") +
+  
+  # Set theme to a white background
+  theme_bw() +
+  
+  # Customize theme settings
+  theme(
+    panel.grid = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    axis.line = element_line(size=0.4, colour="black"),
+    axis.text = element_text(colour="black", size=10),
+    axis.text.x = element_text(angle=45, vjust=1, hjust=1),
+    axis.ticks = element_line(colour="black")
+  ) +
+  
+  # Adjust legend position
+  theme(legend.position="bottom")
+
+# Save plot as PDF file
+ggsave(plot=p, file="Percentage_homolog_PPR.pdf", width=4.6, height=3.2)
+
+
+```
+
+
+## Fig.S1d
+
+```{r}
+# Read data from Excel file, specify sheet and separator
+data <- read.xlsx("Unique_average_21_tpm.xlsx", sep = "\t")
+
+# Set row names as the first column
+rownames(data) <- data[,1]
+
+# Remove Group.1 column
+data$Group.1 <- NULL
+
+# Read gene data from a tab-delimited file
+gene <- read.delim2("cluster-PPR.txt", header = FALSE, sep = "\t", check.names = FALSE)
+
+# Convert data to numeric format
+data <- apply(data, c(1,2), as.numeric)
+
+# Replace NA values with 0
+na <- colnames(data)
+data <- data.frame(data)
+names(data) <- na
+data[is.na(data)] <- 0
+
+# Calculate column sums
+csum <- colSums(data)
+
+# Calculate hotspot and other values
+hotspot <- data.frame(value = colSums(data[rownames(data) %in% gene$V1[gene$V2 %in% c("hotspot-cluster")], ]) / csum, class = "hotspot")
+other <- data.frame(value = colSums(data[rownames(data) %in% gene$V1[!gene$V2 %in% c("hotspot-cluster")], ]) / csum, class = "other")
+
+# Combine hotspot and other data
+per_data <- data.frame(hotspot, acc = rownames(hotspot))
+per_data <- rbind(per_data, data.frame(other, acc = rownames(other)))
+
+# Convert to tibble
+tibble_df <- as_tibble(per_data)
+tibble_df$acc <- factor(tibble_df$acc)
+tibble_df$class <- factor(tibble_df$class)
+
+# Install and load ggplot2 and ggpmisc packages if not already installed
+if (!requireNamespace("ggplot2", quietly = TRUE)) {
+  install.packages("ggplot2")
+}
+if (!requireNamespace("ggpmisc", quietly = TRUE)) {
+  install.packages("ggpmisc")
+}
+library(ggplot2)
+
+# Set plot theme
+theme_set(theme_minimal())
+
+# Create ggplot
+p <- ggplot(tibble_df, aes(x = "", y = value, fill = class)) +
+  geom_bar(stat = "identity", color = "white", width = 0.01) +
+  coord_polar("y", start = 0) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  facet_wrap(. ~ acc, nrow = 2) +
+  geom_text(aes(label = scales::percent(value)),
+            position = position_stack(vjust = 0.5), size = 3) +
+  theme(strip.text = element_text(size = 10)) +
+  theme(legend.title = element_blank()) +
+  theme(legend.position = "top") +
+  theme(plot.title = element_text(size = 25, face = "bold", vjust = 0.5, hjust = 0.5),
+        legend.key.size = unit(0.5, 'cm'),
+        legend.key.height = unit(0.4, 'cm'),
+        legend.key.width = unit(0.4, 'cm'),
+        legend.text = element_text(size = 10, face = "plain")) 
+
+# Save plot as PDF file
+ggsave(plot = p, file = "Piechart_cluster_PPR-siRNA.pdf", width = 4, height = 2.6)
+```

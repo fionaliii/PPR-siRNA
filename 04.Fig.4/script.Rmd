@@ -1,0 +1,212 @@
+---
+title: "high-impact density"
+output: html_document
+date: "18-03-2024"
+---
+
+## import R libraries
+
+```{r}
+
+library(openxlsx)
+library(ggplot2)
+library(ggsignif)
+library(ggformula)
+library(agricolae)
+library(dplyr)
+library(tibble)
+library(ggalt)
+library(gggenes)
+
+```
+
+
+## Fig.4a
+
+```{r}
+
+# Set the working directory
+setwd("/Users/lfeng/Library/CloudStorage/OneDrive-NorwichBioScienceInstitutes/01.projects/01.PPRsiRNA/02.ath8acc/script/04.Fig.4/01.Fig.4a/")
+
+# Read SNP data 
+snp_data <- read.xlsx("1001genomes_snp-short-indel_only_ACGTN_v3.1.vcf.genes.xlsx", startRow = 2)
+
+# Calculate PHI density
+snp_data$PHI <- rowSums(snp_data[, c(46, 65)])
+snp_data$PHI_density <- as.numeric(snp_data$PHI) / as.numeric(snp_data$`Length.(EXON)`)
+
+# Subset all protein SNP data
+prot_temp <- read.delim2("all_gene.stat.txt", row.names = 1, header = TRUE, sep = "\t")
+sub_all_snp <- snp_data[match(rownames(prot_temp), snp_data$ID), ]
+sub_all_snp$Class <- "all-protein"
+sub_all_snp <- sub_all_snp[!is.na(sub_all_snp$ID), ]
+
+# Generate random gene SNP data
+ran_set <- matrix(0, nrow = 500, ncol = 1000)
+for (i in 1:1000) {
+  ran_ids <- sample(1:nrow(sub_all_snp), 500, replace = FALSE)
+  ran_set[, i] <- sub_all_snp$PHI_density[ran_ids]
+}
+ran_set <- apply(ran_set, c(1, 2), as.numeric)
+
+# Create a data frame for random gene SNP data
+sub_ran_snp <- data.frame(PHI_density = apply(ran_set, 1, function(x) {aa <- na.omit(x); bb <- median(aa)}))
+sub_ran_snp <- data.frame(ID = "random", PHI_density = sub_ran_snp, Class = "random")
+
+# Combine SNP data from different sources
+gene <- read.delim2("gene_class.txt", sep = "\t", header = TRUE)
+sub_snp <- snp_data[match(gene$ID, snp_data$ID), ]
+sub_snp$Class <- gene$Class
+pdata <- rbind(sub_snp[, c("ID", "PHI_density", "Class")], sub_ran_snp)
+
+# Convert data types and define factor levels
+pdata$PHI_density <- as.numeric(pdata$PHI_density)
+pdata$Class <- factor(pdata$Class, levels = c("HS-siRNA-PPR", "non-HS-siRNA-PPR", "non-siRNA-PPR", "siRNA-NLR", "non-siRNA-NLR", "random"))
+
+# Define factor levels
+level <- c("HS-siRNA-PPR", "non-HS-siRNA-PPR", "non-siRNA-PPR", "siRNA-NLR", "non-siRNA-NLR", "random")
+pdata$Class <- factor(pdata$Class, levels = level)
+
+
+# Perform Kruskal-Wallis test
+test <- kruskal(pdata$PHI_density, pdata$Class, group = TRUE, p.adj = "bonferroni", alpha = 0.05)
+
+# Extract and organize the test results
+t_comp <- test$means %>% 
+  rownames_to_column(var = "group") %>%
+  rename(PHI_density = pdata.PHI_density) %>% 
+  as_tibble() %>% 
+  left_join(as_tibble(test$groups), by = c("rank" = "pdata$PHI_density"))
+
+# Define factor levels
+t_comp$group <- factor(t_comp$group, levels = level)
+
+# # A tibble: 6 × 11
+#   group            PHI_density  rank      std     r     Min      Max      Q25      Q50      Q75 groups
+#   <chr>                  <dbl> <dbl>    <dbl> <int>   <dbl>    <dbl>    <dbl>    <dbl>    <dbl> <chr> 
+# 1 HS-siRNA-PPR        0.00242   791. 0.00200     14 0       0.00636  0.000737 0.00242  0.00389  a     
+# 2 non-HS-siRNA-PPR    0.00339   776  0.00410      4 0       0.00914  0.000736 0.00222  0.00488  ab    
+# 3 non-siRNA-NLR       0.00703   958. 0.00658    162 0       0.0400   0.00241  0.00557  0.00949  a     
+# 4 non-siRNA-PPR       0.00116   445. 0.00347    457 0       0.0336   0        0        0.000712 b     
+# 5 random              0.000421  549. 0.000126   500 0       0.000672 0.000380 0.000443 0.000497 b     
+# 6 siRNA-NLR           0.0108   1068. 0.00633      4 0.00199 0.0166   0.00869  0.0124   0.0145   a 
+
+# Create the boxplot with jittered points
+p1 <- pdata %>% 
+  ggplot(aes(x = Class, y = PHI_density)) + 
+  geom_boxplot(aes(fill = Class), outlier.size = -1, width = 0.3) +
+  geom_jitter(aes(group = Class), color = "black", size = 0.5, 
+              position = position_jitter(width = 0.2), alpha = 0.3) +
+  scale_fill_manual(
+    values = c(
+      "HS-siRNA-PPR" = "#9E4231",
+      "non-HS-siRNA-PPR" = "#30669B",
+      "non-siRNA-PPR" = "#C6833F",
+      "siRNA-NLR" = "#008073",
+      "non-siRNA-NLR" = "#7C7CB1",
+      "random" = "#787C7E"
+    )
+  ) +
+  ylab("PHI density") +
+  xlab("") + 
+  ylim(c(0, 0.025)) +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(fill = NA, colour = "black", linewidth = 1),
+    panel.background = element_blank(),
+    axis.text = element_text(colour = "black"),
+    axis.text.x = element_text(colour = "black", angle = 45, hjust = 1, vjust = 1),
+    axis.ticks = element_line(colour = "black")
+  ) +
+  theme(
+    legend.key.size = unit(0.5, 'cm'), 
+    legend.key.height = unit(0.4, 'cm'), 
+    legend.key.width = unit(0.4, 'cm'), 
+    legend.title = element_text(size = 12, face = "bold"), 
+    legend.text = element_text(size = 10, face = "plain")
+  )
+
+# Save the plot
+ggsave(p1, file = "High-impact_density.pdf", width = 4.5, height = 3)
+
+```
+
+## Fig.4b
+
+```{r cars}
+
+# Set the working directory
+setwd("/Users/lfeng/Library/CloudStorage/OneDrive-NorwichBioScienceInstitutes/01.projects/01.PPRsiRNA/02.ath8acc/script/04.Fig.4/02.Fig.4b/")
+
+# Read the gene locus data
+gene_locus <- read.delim2("AT1G62670_hotspot_locus.txt", sep = "\t", header = TRUE)
+
+# Convert Class to factor with specified levels
+gene_locus$Class <- factor(gene_locus$Class, levels = c("siRNA-PPR", "non-siRNA-PPR", "other"))
+
+# Create the plot
+p <- ggplot(gene_locus, aes(xmin = start, xmax = end, y = molecule, fill = Class, label = gene, forward = direction), color = "grey") +
+  geom_gene_arrow() +
+  facet_wrap(~ molecule, scales = "free", ncol = 1) +
+  scale_fill_manual(values = c("siRNA-PPR" = "red", "non-siRNA-PPR" = "#51AFA8", "other" = "black")) +
+  theme_genes() +
+  ylab("") +
+  geom_gene_label(align = "left") + 
+  theme(legend.position = "none")
+
+# Save the plot
+ggsave(plot = p, filename = "AT1G62670_structure.pdf", height = 4, width = 20)
+
+```
+
+
+## Fig.4c-4d
+
+```{r cars}
+
+# Set the working directory
+setwd("/Users/lfeng/Library/CloudStorage/OneDrive-NorwichBioScienceInstitutes/01.projects/01.PPRsiRNA/02.ath8acc/script/04.Fig.4/03.Fig.4c-d/")
+
+# Read the data from the Excel file
+data <- read.xlsx("siRNA_from_homologs.xlsx", sheet = 1)
+
+# Calculate TPM from Count and Total columns
+data$TPM <- data$Count / data$Total * 1000000
+
+# Remove Count and Total columns
+data$Count <- data$Total <- NULL
+
+# Convert Locus and Class to factors with specified levels
+data$Locus <- factor(data$Locus)
+data$Class <- factor(data$Class, levels = c("Specific", "Overlap"))
+
+# Create the plot
+p <- ggplot(data = data, aes(x = Locus, y = TPM, fill = Class)) +
+  scale_fill_manual(values = c("Specific" = "#B5261D", "Overlap" = "#435F60")) +
+  geom_bar(stat = "identity", color = "black", width = 0.5) +
+  ylab("TPM of siRNAs") +
+  xlab("") + 
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(fill = NA, colour = "black", linewidth = 1),
+    panel.background = element_blank(),
+    axis.text = element_text(colour = "black"),
+    axis.text.x = element_text(colour = "black", angle = 45, hjust = 1, vjust = 1), 
+    axis.ticks = element_line(colour = "black")
+  ) +
+  theme(
+    legend.key.size = unit(0.5, 'cm'), 
+    legend.key.height = unit(0.4, 'cm'), 
+    legend.key.width = unit(0.4, 'cm'), 
+    legend.title = element_text(size = 10, face = "plain"), 
+    legend.text = element_text(size = 10, face = "plain")
+  )
+
+# Save the plot
+ggsave(plot = p, filename = "AT1G62670_homologs_siRNA.pdf", height = 3, width = 2.5)
+
+```
+
+

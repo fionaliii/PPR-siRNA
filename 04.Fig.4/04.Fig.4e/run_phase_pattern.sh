@@ -1,0 +1,2 @@
+Rscript ~/00.scripts/phase-analysis/plot_phase_pattern.R map_Cvi1.sort.bam LR699760.1:23027237-23028182 21 ATCVI-1G76280-2
+Rscript ~/00.scripts/phase-analysis/plot_phase_pattern.R map_Cvi1.sort.bam LR699760.1:22940917-22941862 21 ATCVI-1G76280

@@ -1,0 +1,180 @@
+---
+title: "soybean_tree"
+output: html_document
+date: "2023-12-13"
+---
+
+```{r setup, include=FALSE}
+library(reshape2)
+library(ggtree)
+library(ggplot2)
+library(ggtreeExtra)
+library(treeio)
+library(tidytree)
+library(ggstar)
+library(ggnewscale)
+library(TDbook)
+```
+
+
+```{r cars}
+# Set the working directory
+setwd("/Users/lfeng/Library/CloudStorage/OneDrive-NorwichBioScienceInstitutes/01.projects/01.PPRsiRNA/02.ath8acc/script/05.Fig.5/02.Fig.5c/")
+
+# Read the tree file
+tree <- read.tree("ppr.fa.trimal.phy.contree")
+
+# Create the basic tree plot
+p <- ggtree(tree, aes(colour = tree$Color), color = "black", layout = "fan", size = 1.5) +
+  geom_tiplab2(offset = .08, size = 0, color = "grey", align = TRUE, linetype = NA) 
+p <- open_tree(p, 8)
+
+# Get tip labels and assign host values
+tip <- get.tree(tree)$tip.label
+host <- rep("gene", length(tip))
+cgene <- c("GLYMA_07G100300", "GLYMA_07G101300", "GLYMA_16G162700", "GLYMA_16G195100", "GLYMA_09G175800", "GLYMA_15G201200",
+           "GLYMA_08G053100", "GLYMA_09G171200", "GLYMA_09G174600", "GLYMA_09G175100", "GLYMA_09G176000", "GLYMA_09G176600",
+           "GLYMA_09G176800", "GLYMA_09G178300", "GLYMA_09G256600", "GLYMA_09G263600", "GLYMA_10G002800", "GLYMA_14G202200",
+           "GLYMA_16G139800", "GLYMA_16G160200", "GLYMA_16G161900", "GLYMA_16G162800", "GLYMA_16G163100", "GLYMA_16G165400", "GLYMA_16G195000",
+           "GLYMA_16G195700", "GLYMA_16G195900", "GLYMA_16G199700", "GLYMA_18G228500", "GLYMA_16G162100", "GLYMA_16G160700",
+           "GLYMA_12G118300", "GLYMA_16G197600")
+host[match(cgene, tip)] <- "highlight"
+host.df <- data.frame(taxa = tip, host = factor(host))
+
+
+p = ggtree(tree, aes(colour=tree$Color),color="black",layout="fan", size= 1.5)+  #0.05
+  #geom_treescale(x = 0, y = 45, width = 0.7) +
+  geom_tiplab2(offset=.08,size=0,color="grey",align=TRUE,linetype=NA) #align=TRUE, ,linesize=0.2
+p = open_tree(p,8)
+
+# Add highlighted gene points
+p <- p %<+% host.df + 
+  geom_tippoint(aes(color = host), size = 0) +
+  geom_tiplab2(aes(color = host), align = TRUE, size = 0, linetype = "dotted", linesize = 0.5) +
+  scale_color_manual(values = c("gene" = "white", "highlight" = "darkgrey"), guide = 'none')
+
+# Read chromosome data
+chr_data <- read.delim2("chr-PPR-v2.txt", sep = "\t", header = TRUE, check.names = FALSE)
+chr_data <- chr_data[chr_data$ID %in% tree$tip.label, ]
+chr_data$Chromosome[chr_data$Chromosome %in% "16"] <- "Chr16"
+chr_data$Chromosome[chr_data$Chromosome %in% "9"] <- "Chr9"
+chr_data$Chromosome <- factor(chr_data$Chromosome, levels = c("Chr9", "Chr16", "Other"))
+
+# Add chromosome data as fruit
+p <- p + new_scale_fill() +
+  geom_fruit(data = chr_data, geom = geom_tile,
+             mapping = aes(y = ID, x = Count, fill = Chromosome),
+             color = "white", offset = -0.16, width = 0.3) +
+  scale_fill_manual(values = c("Chr16" = "#9E2214", "Chr9" = "#4363d8", "Other" = "#EDE9D5"),
+                    guide = guide_legend(keywidth = 2, keyheight = 2, order = 3))
+
+# Read miRNA target data
+miRNA_target <- read.delim2("target.txt", sep = "\t", header = TRUE, check.names = FALSE)
+miRNA_target$Number <- as.numeric(miRNA_target$Number)
+miRNA_target$Trigger <- 1
+miRNA_target <- miRNA_target[, c("ID", "Trigger", "Number")]
+
+# Categorize target numbers
+miRNA_target$Number <- cut(
+  miRNA_target$Number,
+  breaks = c(0, 1, 3, 5, 8),
+  labels = c("0", "1-3", "3-5", "5-8"),
+  include.lowest = TRUE
+)
+miRNA_target$Number <- factor(miRNA_target$Number)
+
+# Finalize the plot with additional customization
+p <- p + new_scale_fill() +
+  geom_fruit(
+    data = miRNA_target,
+    geom = geom_tile,
+    mapping = aes(y = ID, x = Trigger, fill = Number),
+    color = "white",
+    offset = -0.14,
+    width = 0.3
+  ) +
+  scale_fill_manual(
+    values = c("0" = "#FDF6E7", "1-3" = "#F5CFC8", "3-5" = "#EB99B2", "5-8" = "#C0408C"),
+    guide = guide_legend(keywidth = 2, keyheight = 2, order = 4)
+  ) +
+  scale_alpha_discrete(
+    name = "Trigger number",
+    guide = guide_legend(
+      keywidth = 2,
+      keyheight = 2,
+      order = 5,
+      legend.text = element_text(size = 20)
+    )
+  ) +
+  theme(
+    legend.position = c(0.95, 0.5),
+    legend.key.size = unit(0.5, 'cm'),
+    legend.key.height = unit(0.5, 'cm'),
+    legend.key.width = unit(0.5, 'cm'),
+    legend.background = element_rect(fill = NA),
+    legend.title = element_text(size = 20, face = "plain"),
+    legend.text = element_text(size = 20, face = "plain"),
+    legend.spacing.y = unit(0.5, "cm"),
+    legend.spacing.x = unit(0.5, "cm"),
+    plot.margin = unit(c(5, 5, 5, 5), "mm")
+  )
+
+# Read the sRNA data and preprocess it
+sRNA_data <- read.delim2("gma_PPR.tpm.21.txt", sep = "\t", header = TRUE, row.names = 1, check.names = FALSE)
+sRNA_temp <- data.frame(ID = rownames(sRNA_data), Leaf = log2(as.numeric(sRNA_data$Leaf) + 1))
+sRNA_temp <- melt(sRNA_temp, id.vars = "ID", variable.name = "Tissue", value.name = "TPM")
+sRNA_temp$TPM[which(is.na(sRNA_temp$TPM))] <- 0
+names(sRNA_temp) <- c("ID", "Leaf", "TPM")
+sRNA_temp$Abundance <- cut(
+  sRNA_temp$TPM,
+  breaks = c(0, 1, 3, 5, 8),
+  labels = c("0", "1-3", "3-5", "5-8"),
+  include.lowest = TRUE
+)
+sRNA_temp$Abundance <- factor(sRNA_temp$Abundance)
+
+# Set Leaf as 1 for visualization
+sRNA_temp$Leaf <- 1
+
+# Add sRNA data to the plot
+p <- p + new_scale_fill() +
+  geom_fruit(
+    data = sRNA_temp,
+    geom = geom_tile,
+    mapping = aes(y = ID, x = Leaf, fill = Abundance),
+    color = "white",
+    offset = -0.14,
+    width = 0.3
+  ) +
+  scale_fill_manual(
+    values = c("0" = "#F7E9C6", "1-3" = "#F1D078", "3-5" = "#CE9B36", "5-8" = "#644B15"),
+    guide = guide_legend(keywidth = 2, keyheight = 2, order = 4)
+  ) +
+  scale_alpha_continuous(
+    name = "TPM (log2)",
+    range = c(0, 1),
+    guide = guide_legend(
+      keywidth = 2,
+      keyheight = 2,
+      order = 5,
+      legend.text = element_text(size = 20)
+    )
+  ) +
+  theme(
+    legend.position = c(0.95, 0.5),
+    legend.key.size = unit(0.5, 'cm'),
+    legend.key.height = unit(0.5, 'cm'),
+    legend.key.width = unit(0.5, 'cm'),
+    legend.background = element_rect(fill = NA),
+    legend.title = element_text(size = 20, face = "plain"),
+    legend.text = element_text(size = 20, face = "plain"),
+    legend.spacing.y = unit(0.5, "cm"),
+    legend.spacing.x = unit(0.5, "cm"),
+    plot.margin = unit(c(5, 5, 5, 5), "mm")
+  )
+
+# Save the plot
+ggsave(plot = p, filename = "gly_PPR.prot.trimal.phy.treefile.pdf", width = 80, height = 80, units = "cm", limitsize = FALSE)
+
+ 
+```

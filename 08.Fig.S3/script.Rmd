@@ -1,0 +1,426 @@
+---
+title: "nucleotide_diversity"
+output:
+  html_document: default
+  pdf_document: default
+date: "18-03-2024"
+---
+
+## import R packages
+
+```{r}
+library(tidyverse)
+library(ape)
+library(PopGenome)
+library(adegenet)
+library(ggsignif)
+library(openxlsx)
+library(ggformula)
+library(emmeans)
+library(multcomp)
+library(multcompView)
+library(car)
+library(agricolae)
+library(ggjoy)
+library(lemon)
+```
+
+
+```{r}
+path = "/Users/lfeng/Library/CloudStorage/OneDrive-NorwichBioScienceInstitutes/01.projects/01.PPRsiRNA/02.ath8acc/script/08.Fig.S3/"
+setwd(path)
+
+# Read data from files
+prot_temp <- read.delim2("all_gene.stat.txt", row.names = 1, header = TRUE, sep = "\t")
+ppr_class <- read.delim2("PPR_class.txt", sep = "\t", header = TRUE)
+nlr_class <- read.delim2("NLR_class.txt", sep = "\t", header = TRUE)
+
+# process PPR data
+ppr_temp <- prot_temp[match(ppr_class$ID, rownames(prot_temp)), ]
+ppr_temp$Class <- ppr_class$Class[match(rownames(ppr_temp), ppr_class$ID)]
+ppr_temp$ID <- rownames(ppr_temp)
+
+# process NLR data
+nlr_temp <- prot_temp[match(nlr_class$ID, rownames(prot_temp)), ]
+nlr_temp$Class <- nlr_class$Class[match(rownames(nlr_temp), nlr_class$ID)]
+nlr_temp$Class[is.na(nlr_temp$Class)] <- "non-siRNA-NLR"
+nlr_temp$ID <- rownames(nlr_temp)
+
+# process all protein
+prot_temp$Class <- "all-protein"
+prot_temp$ID <- rownames(prot_temp)
+
+
+## STEP2: generate random data  
+
+# Create empty matrices 
+ran_pi <- ran_Tajima.D <- ran_theta <- ran_dis <- ran_dN <- ran_dS <- ran_dNdS <- matrix(0, nrow = 500, ncol = 1000)
+
+# Generate random data 
+for (i in 1:1000) {
+  ran_ids <- sample(1:nrow(prot_temp), 500, replace = FALSE)
+  ran_pi[, i] <- prot_temp$Pi[ran_ids]
+  ran_Tajima.D[, i] <- prot_temp$Tajima.D[ran_ids]
+  ran_theta[, i] <- prot_temp$theta_Watterson[ran_ids]
+  ran_dis[, i] <- prot_temp$Distance[ran_ids]
+}
+
+ran_pi <- apply(ran_pi, c(1, 2), as.numeric)
+ran_Tajima.D <- apply(ran_Tajima.D, c(1, 2), as.numeric)
+ran_theta <- apply(ran_theta, c(1, 2), as.numeric)
+ran_dis <- apply(ran_dis, c(1, 2), as.numeric)
+
+ran_temp <- data.frame(
+  Pi = apply(ran_pi, 1, function(x) median(na.omit(x))),
+  Tajima.D = apply(ran_Tajima.D, 1, function(x) median(na.omit(x))),
+  theta_Watterson = apply(ran_theta, 1, function(x) median(na.omit(x))),
+  Distance = apply(ran_dis, 1, function(x) median(na.omit(x))),
+  Class = "random",
+  ID = "ID"
+)
+
+pdata <- rbind(ppr_temp, nlr_temp)
+pdata <- rbind(pdata, ran_temp)
+
+level <- c("HS-siRNA-PPR", "non-HS-siRNA-PPR", "non-siRNA-PPR", "siRNA-NLR", "non-siRNA-NLR", "random")
+pdata$Class <- factor(pdata$Class, levels = level)
+
+```
+
+## Fig.S3a
+
+```{r}
+
+pdata$theta_Watterson <- as.numeric(pdata$theta_Watterson)
+
+test <- kruskal(pdata$theta_Watterson, pdata$Class, group = TRUE, p.adj = "bonferroni", alpha = 0.05)
+
+t_comp <- test$means %>% 
+    rownames_to_column(var = "group") %>%
+    rename(theta_Watterson = pdata.theta_Watterson) %>% 
+    as_tibble() %>% 
+    left_join(as_tibble(test$groups), by = c("rank" = "pdata$theta_Watterson"))
+
+t_comp$group <- factor(t_comp$group, levels = level)
+
+#  A tibble: 6 × 11
+#   group            theta_Watterson  rank      std     r     Min    Max     Q25    Q50    Q75 groups
+#   <chr>                      <dbl> <dbl>    <dbl> <int>   <dbl>  <dbl>   <dbl>  <dbl>  <dbl> <chr> 
+# 1 HS-siRNA-PPR              0.0440 1051. 0.0187      14 0.0154  0.0802 0.0293  0.0405 0.0549 a     
+# 2 non-HS-siRNA-PPR          0.0332 1015. 0.0170       4 0.0154  0.0493 0.0203  0.0340 0.0468 a     
+# 3 non-siRNA-NLR             0.0414  898. 0.0329     161 0.00771 0.142  0.0138  0.0285 0.0627 a     
+# 4 non-siRNA-PPR             0.0130  492. 0.0103     456 0.00771 0.130  0.00826 0.0103 0.0143 b     
+# 5 random                    0.0107  517. 0.000283   500 0.0101  0.0116 0.0105  0.0108 0.0109 b     
+# 6 siRNA-NLR                 0.0292  784  0.0216       4 0.0100  0.0511 0.0110  0.0278 0.0460 ab 
+
+p1 <- pdata %>% 
+    ggplot(aes(x = Class, y = theta_Watterson)) + 
+    geom_boxplot(aes(fill = Class), outlier.size = -1, width = 0.3) +
+    geom_jitter(aes(group = Class), color = "black", size = 0.3, 
+                position = position_jitter(width = 0.2), alpha = 0.2) +
+    scale_fill_manual(
+        values = c(
+            "HS-siRNA-PPR" = "#9E4231",
+            "non-HS-siRNA-PPR" = "#30669B",
+            "non-siRNA-PPR" = "#C6833F",
+            "siRNA-NLR" = "#008073",
+            "non-siRNA-NLR" = "#7C7CB1",
+            "random" = "#787C7E"
+        )
+    ) +
+    ylim(c(0, 0.20)) +
+    ylab("Nucleotide diversity, theta") +
+    xlab("") + 
+    theme(
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_rect(fill = NA, colour = "black", linewidth = 1),
+        panel.background = element_blank(),
+        axis.text = element_text(colour = "black", size = 9),
+        axis.text.x = element_text(colour = "black", angle = 45, hjust = 1, vjust = 1),
+        axis.ticks = element_line(colour = "black")
+    ) +
+    theme(
+        legend.key.size = unit(0.5, 'cm'), 
+        legend.key.height = unit(0.4, 'cm'), 
+        legend.key.width = unit(0.4, 'cm'), 
+        legend.title = element_text(size = 12, face = "bold"), 
+        legend.text = element_text(size = 10, face = "plain")
+    )
+
+ggsave(p1, file = "plot-theta-boxplot.pdf", width = 4.5, height = 3)
+
+```
+
+## Fig.S3a
+
+
+```{r}
+
+pdata$Distance <- as.numeric(pdata$Distance)
+
+test <- kruskal(pdata$Distance, pdata$Class, group = TRUE, p.adj = "bonferroni", alpha = 0.05)
+
+t_comp <- test$means %>%
+  rownames_to_column(var = "group") %>%
+  rename(Distance = pdata.Distance) %>%
+  as_tibble() %>%
+  left_join(as_tibble(test$groups), by = c("rank" = "pdata$Distance"))
+
+t_comp$group <- factor(t_comp$group, levels = level)
+
+# A tibble: 6 × 11
+#   group            Distance  rank      std     r     Min     Max     Q25     Q50     Q75 groups
+#   <chr>               <dbl> <dbl>    <dbl> <int>   <dbl>   <dbl>   <dbl>   <dbl>   <dbl> <chr> 
+# 1 HS-siRNA-PPR      0.0361   989. 0.0243      14 0.00154 0.0777  0.0147  0.0357  0.0464  a     
+# 2 non-HS-siRNA-PPR  0.0216   970. 0.0190       4 0.00522 0.0425  0.00570 0.0194  0.0353  a     
+# 3 non-siRNA-NLR     0.0424   914. 0.0484     162 0       0.247   0.00547 0.0235  0.0639  a     
+# 4 non-siRNA-PPR     0.00507  474. 0.0102     457 0       0.116   0.00104 0.00212 0.00564 b     
+# 5 random            0.00264  533. 0.000179   500 0.00213 0.00313 0.00251 0.00263 0.00276 b     
+# 6 siRNA-NLR         0.0279   650. 0.0304       4 0.00139 0.0585  0.00198 0.0259  0.0519  ab 
+
+p1 <- pdata %>% 
+  ggplot(aes(x = Class, y = Distance)) + 
+  geom_boxplot(aes(fill = Class), outlier.size = -1, width = 0.3) +
+  geom_jitter(aes(group = Class), color = "black", size = 0.3, 
+              position = position_jitter(width = 0.2), alpha = 0.2) +
+  scale_fill_manual(
+    values = c(
+      "HS-siRNA-PPR" = "#9E4231",
+      "non-HS-siRNA-PPR" = "#30669B",
+      "non-siRNA-PPR" = "#C6833F",
+      "siRNA-NLR" = "#008073",
+      "non-siRNA-NLR" = "#7C7CB1",
+      "random" = "#787C7E"
+    )
+  ) +
+  ylim(c(0, 0.2)) +
+  ylab("Distance") +
+  xlab("") + 
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(fill = NA, colour = "black", linewidth = 1),
+    panel.background = element_blank(),
+    axis.text = element_text(colour = "black", size = 9),
+    axis.text.x = element_text(colour = "black", angle = 45, hjust = 1, vjust = 1),
+    axis.ticks = element_line(colour = "black")
+  ) +
+  theme(
+    legend.key.size = unit(0.5, 'cm'), 
+    legend.key.height = unit(0.4, 'cm'), 
+    legend.key.width = unit(0.4, 'cm'), 
+    legend.title = element_text(size = 12, face = "bold"), 
+    legend.text = element_text(size = 10, face = "plain")
+  )
+
+ggsave(p1, file = "plot-distance-boxplot.pdf", width = 4.5, height = 3)
+
+```
+
+
+## Fig.S3b
+
+```{r}
+
+pdata$theta_Watterson <- as.numeric(pdata$theta_Watterson)
+
+p1 <- gf_histogram(~ theta_Watterson | Class, alpha = 0.2, data = pdata, bins = 30) %>%
+  gf_freqpoly(~ theta_Watterson, data = pdata, color = ~ Class, size = 1) +
+  facet_wrap(~ Class, scales = "free_y", nrow = 1) +
+  scale_colour_manual(
+    values = c(
+      "HS-siRNA-PPR" = "#9E4231",
+      "non-HS-siRNA-PPR" = "#30669B",
+      "non-siRNA-PPR" = "#C6833F",
+      "siRNA-NLR" = "#008073",
+      "non-siRNA-NLR" = "#7C7CB1",
+      "random" = "#787C7E"
+    )
+  ) +
+  scale_x_continuous(limits = c(0, 0.15), breaks = seq(0, 0.15, 0.03)) +
+  xlab("Nucleotide diversity, theta") +
+  ylab("Loci Number") +
+  theme_bw() +
+  theme(
+    panel.grid = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    axis.line = element_line(size = 0.4, colour = "black"),
+    axis.text = element_text(colour = "black", size = 11),
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+    axis.ticks = element_line(colour = "black")
+  ) +
+  theme(legend.position = "none") +
+  theme(strip.background = element_rect(colour = "white", fill = "white"))
+
+ggsave(p1, file = "plot-theta-density.pdf", width = 10, height = 2)
+
+  
+```
+
+
+## Fig.S3b
+
+```{r}
+
+pdata$Distance <- as.numeric(pdata$Distance)
+
+p1 <- gf_histogram(~ Distance | Class, alpha = 0.2, data = pdata, bins = 30) %>%
+  gf_freqpoly(~ Distance, data = pdata, color = ~ Class, size = 1) +
+  facet_wrap(~ Class, scales = "free_y", nrow = 1) +
+  scale_colour_manual(values = c(
+    "HS-siRNA-PPR" = "#9E4231",
+    "non-HS-siRNA-PPR" = "#30669B",
+    "non-siRNA-PPR" = "#C6833F",
+    "siRNA-NLR" = "#008073",
+    "non-siRNA-NLR" = "#7C7CB1",
+    "random" = "#787C7E"
+  )) +
+  scale_x_continuous(limits = c(0, 0.25), breaks = seq(0, 0.25, 0.05)) +
+  xlab("Distance") +
+  ylab("Loci Number") +
+  theme_bw() +
+  theme(
+    panel.grid = element_blank(),
+    panel.border = element_blank(),
+    panel.background = element_blank(),
+    axis.line = element_line(size = 0.4, colour = "black"),
+    axis.text = element_text(colour = "black", size = 11),
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+    axis.ticks = element_line(colour = "black"),
+    legend.position = "none",
+    strip.background = element_rect(colour = "white", fill = "white")
+  )
+
+ggsave(p1, file = "plot-distance-density.pdf", width = 10, height = 2)
+
+```
+
+## Fig.S3c
+
+```{r}
+# Get files matching the pattern "sRNA.fa.out"
+gstar_file <- dir(pattern = "sRNA.fa.out")
+
+# Read PPR class data
+class <- read.delim2("PPR-class.txt", sep = "\t", header = TRUE)
+
+# Filter classes to hotspot and non-hotspot siRNA-PPR
+class <- class[class$class %in% c("hotspot-siRNA-PPR", "non-siRNA-PPR"), ]
+
+# Extract ID from GeneID
+class$ID <- sapply(class$GeneID, function(x) { unlist(strsplit(x, "\\."))[1] })
+
+# Initialize empty dataframe
+temp <- c()
+
+# Iterate over each gstar file
+for(i in 1:length(gstar_file)){
+  
+  # Extract accession
+  acc <- unlist(strsplit(gstar_file[i], "\\."))[1]
+  
+  # Read gstar data
+  gstar_data <- read.delim2(gstar_file[i], sep = "\t", header = TRUE, comment.char = "#")
+  
+  # Get number of rows and columns
+  npair <- dim(gstar_data)
+  
+  # Subset columns: Query, Transcript, AllenScore, Sequence
+  finfo <- gstar_data[, c("Query", "Transcript", "AllenScore", "Sequence")]
+  
+  # Order finfo by AllenScore
+  finfo <- finfo[order(finfo$AllenScore), ]
+  
+  # Extract ids and genes
+  finfo$ids <- sapply(finfo$Transcript, function(x) { unlist(strsplit(x, "_"))[1] })
+  finfo$gene <- sapply(finfo$Transcript, function(x) { unlist(strsplit(x, "_"))[2] })
+  
+  # Add accession, class, sRNA_seq, target_seq, sRNA_seq_len, and target_seq_len columns
+  finfo$acc <- acc
+  finfo$class <- class[match(finfo$ids, class$ID), 1]
+  finfo$sRNA_seq <- sapply(finfo$Sequence, function(x) { gsub("-", "", unlist(strsplit(x, "&"))[2]) })
+  finfo$target_seq <- sapply(finfo$Sequence, function(x) { gsub("-", "", unlist(strsplit(x, "&"))[1]) })
+  finfo$sRNA_seq_len <- sapply(finfo$Sequence, function(x) { nchar(gsub("-", "", unlist(strsplit(x, "&"))[2])) })
+  finfo$target_seq_len <- sapply(finfo$Sequence, function(x) { nchar(gsub("-", "", unlist(strsplit(x, "&"))[1])) })
+  
+  # Combine dataframes
+  if(length(temp) == 0){
+    temp <- finfo
+  } else {
+    temp <- rbind(temp, finfo)
+  }
+}
+
+# Select relevant columns
+temp <- temp[, c("Query", "AllenScore", "ids", "gene", "acc", "class", "sRNA_seq", "target_seq", "sRNA_seq_len", "target_seq_len")]
+
+# Create a mapping for query column
+query_mapping <- c(
+  "TAS2_3D6" = "TAS2 3'D6",
+  "miR161.1" = "miR161.1",
+  "miR161.2" = "miR161.2",
+  "miR400" = "miR400",
+  "TAS1a_3D9" = "TAS1a 3'D9",
+  "TAS1b_3D4" = "TAS1b 3'D4",
+  "TAS1c_3D6" = "TAS1c 3'D6",
+  "TAS1c_3D10" = "TAS1c 3'D10",
+  "TAS2_3D9" = "TAS2 3'D9",
+  "TAS2_3D11" = "TAS2 3'D11",
+  "TAS2_3D12" = "TAS2 3'D12"
+)
+
+# Replace Query column values based on mapping
+temp$Query <- query_mapping[temp$Query]
+
+# Convert AllenScore to numeric
+temp$AllenScore <- as.numeric(temp$AllenScore)
+
+# Convert acc and ids to factors
+temp$acc <- factor(temp$acc)
+temp$ids <- factor(temp$ids)
+
+# Remove rows with NA class
+temp <- temp[!is.na(temp$class), ]
+
+# Convert class to factor with specified levels
+temp$class <- factor(temp$class, levels = c("non-siRNA-PPR", "hotspot-siRNA-PPR"))
+
+# Create the density plot
+p1 <- ggplot(temp, aes(x = AllenScore, y = as.factor(class), fill = factor(class))) +
+  geom_joy(aes(x = AllenScore, y = as.factor(class), fill = factor(class)), alpha = 0.8, show.legend = TRUE) +  # Joy plot for density visualization
+  geom_vline(xintercept = 4, linetype = "dashed", color = "black", size = 0.5) +  # Add a vertical line at x = 4
+  scale_y_discrete(expand = c(0, 0)) +  # Adjust y-axis limits
+  scale_fill_manual(values = c(
+    "hotspot-siRNA-PPR" = "#A23223",  # Define colors for classes
+    "non-siRNA-PPR" = "#7499CB"
+  )) +
+  xlab("Allen et al. score") +  # Label for x-axis
+  xlim(c(0, 15)) +  # Set x-axis limits
+  ylab("") +  # No label for y-axis
+  facet_grid(~ acc, scales = "free") +  # Facet by accession IDs with free scales
+  coord_capped_cart(bottom = 'both', left = 'both') +  # Add capped Cartesian coordinates
+  theme_bw() +  # Use a black and white theme
+  theme(legend.position = "top") +  # Position the legend at the top
+  theme(strip.background = element_rect(colour = "white", fill = "white")) +  # Theme for facet strip background
+  theme(
+    strip.text.x = element_text(colour = "black"),  # Theme for x-axis facet strip text
+    strip.text.y = element_text(colour = "black", face = "bold")  # Theme for y-axis facet strip text
+  ) +
+  theme(
+    panel.grid.major.x = element_blank(),  # Remove major gridlines on x-axis
+    panel.grid.minor.x = element_blank(),  # Remove minor gridlines on x-axis
+    panel.border = element_blank(),  # Remove panel border
+    axis.line = element_line(),  # Add axis lines
+    axis.text.x = element_text(colour = "black"),  # Theme for x-axis text
+    axis.text.y = element_blank()  # Remove y-axis text
+    # axis.ticks = element_line(colour = "black")  # Add axis ticks
+  ) +
+  theme(legend.title = element_blank())  # Remove legend title
+
+# Save the plot as a PDF file
+ggsave(p1, file = "target_score_density.pdf", width = 10, height = 2.6)
+
+```
+
