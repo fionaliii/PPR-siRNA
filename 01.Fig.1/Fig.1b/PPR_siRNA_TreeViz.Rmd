@@ -1,0 +1,210 @@
+---
+title: "PPR-siRNA Tree Visualization"
+author: "Li Feng: fengl6020@gmail.com"
+date: "2024-03-18"
+output: html_document
+---
+    
+### Load R Packages
+
+```{r load-packages, message=FALSE, warning=FALSE}
+library(ggplot2)
+library(ggtree)
+library(ggtreeExtra)
+library(ggnewscale)
+library(reshape2)
+library(openxlsx)
+library(tidytable)
+```
+
+### Set Working Path and Load Phylogenetic Tree
+
+```{r read-tree}
+
+## Set working path
+path <- "/Users/fengli/Desktop/01.TSL/01.PPR_Proj/Fig.1b/"
+setwd(path)
+
+## Load phylogenetic tree
+treefile <- file.path(path, "ath_475ppr.pep.fa.phy.contree")
+tree <- read.tree(treefile)
+
+## Tree-based visualization
+p = ggtree(tree, aes(colour = tree$Color), color = "black", layout = "fan", size = 1.5) + 
+      geom_tiplab2(offset = .08, size = 0, color = "grey", align = TRUE, linetype = NA) 
+p = open_tree(p,8) 
+
+```
+
+### RING 1: Highlight Clade
+
+```{r highlight-clade}
+
+## Define gene list to highlight
+highlight_genes <- c("AT1G63330", "AT1G62590", "AT1G62910", "AT1G63150", "AT1G62914",
+                     "AT1G63130", "AT1G62930", "AT1G63080", "AT1G63070", "AT1G63400",
+                     "AT1G62670", "AT1G62720", "AT1G62680", "AT3G16710", "AT5G16640",
+                     "AT1G06580", "AT1G64583", "AT1G12300", "AT1G12620", "AT1G12775",
+                     "AT3G22470", "AT1G12700", "AT1G63230", "AT1G64100", "AT1G63630",
+                     "AT3G17370", "AT4G26800", "AT1G64580", "AT5G41170")
+
+highlight_label <- ifelse(tree$tip.label %in% highlight_genes, "highlight", "gene")
+highlight_df <- data.frame(taxa = tree$tip.label, hgene = factor(highlight_label))
+
+## Add tip highlights
+p <- p %<+% highlight_df +
+  geom_tippoint(aes(color = hgene), size = 0) +
+  geom_tiplab2(aes(color = hgene), align = TRUE, size = 0, linetype = "dotted", linesize = 1.5) +
+  scale_color_manual(values = c("gene" = "white", "highlight" = "white"), guide = 'none')
+
+```
+
+### RING 2: Add Chromosome Annotations
+
+```{r ring2-chromosome}
+
+## Read chromosome data
+chr_data <- read.xlsx("TPM_21_PPR_all_accs.xlsx", sheet = 3)
+chr_data$Count <- factor(1)
+chr_data$Chromosome <- factor(chr_data$Chromosome)
+
+## Add chromosome annotations
+p <- p + new_scale_fill() +
+  geom_fruit(data = chr_data,
+             geom = geom_tile,
+             mapping = aes(y = ID, x = Count, fill = Chromosome),
+             color = "white", offset = 0.02, width = 0.2) +
+  scale_fill_manual(values = c("1" = "#9E2214", "2" = "#4363d8", "3" = "#DA8932", "4" = "#390996", "5" = "#8EF6C4"),
+                    guide = guide_legend(keywidth = 2, keyheight = 2))
+
+## Add outer black ring
+addline <- data.frame(ID = chr_data$ID, Count = factor(1))
+p <- p + new_scale_fill() +
+  geom_fruit(data = addline,
+             geom = geom_tile,
+             mapping = aes(y = ID, x = Count),
+             color = "black", fill = "black", offset = 0.015, width = 0.02)
+
+```
+
+### RING 3: Add miRNA Target Info
+
+```{r ring3-mirna-target}
+
+## Read TPM data
+tpm_data <- read.xlsx("TPM_21_PPR_all_accs.xlsx", sheet = 2)
+
+## Read miRNA target data and filter by AllenScore < 4 
+tar_data <- read.delim2("target_region.info.txt", sep = "\t", header = TRUE)
+tar_data <- tar_data %>% filter(AllenScore < 4)
+
+## Extract gene names 
+tar_data <- tar_data %>%
+  mutate(Gene = sub("\\..*", "", ids))
+
+## Create a binary matrix of miRNA targets: 1 if gene targeted by miRNA, else 0
+miR_df <- tar_data %>%
+  select(Query, Gene) %>%
+  distinct() %>%
+  mutate(value = 1) %>%
+  pivot_wider(names_from = Query, values_from = value, values_fill = 0)
+
+## Join miRNA target matrix with TPM data and replace NA with 0 (genes without target info)
+miR_df_full <- tpm_data %>%
+  select(ID) %>%
+  left_join(miR_df, by = c("ID" = "Gene")) %>%
+  replace(is.na(.), 0)
+
+## Aggregate total miRNA target counts per gene
+miR_agg <- miR_df_full %>%
+  mutate(value = rowSums(across(-ID))) %>%
+  transmute(ID,
+            value,
+            Range_Label = case_when(
+              value == 0 ~ "0",
+              value == 1 ~ "1",
+              value %in% 2:4 ~ "2-4",
+              value %in% 5:7 ~ "5-7",
+              TRUE ~ "Other"
+            ),
+            Count = factor(1)) 
+
+## Add miRNA target info
+p <- p + new_scale_fill() +
+  geom_fruit(data = miR_agg,
+             geom = geom_tile,
+             mapping = aes(y = ID, x = Count, fill = Range_Label),
+             color = "white", offset = 0.014, width = 0.2) +
+  scale_fill_manual(name = "Trigger number",
+                    values = c("0" = "white", "1" = "#F4CFDD", "2-4" = "#E799B6", "5-7" = "#BE4F81"))
+
+## Add outer black ring
+p = p + new_scale_fill() +
+  geom_fruit(data = miR_agg, 
+             geom = geom_tile,
+             mapping = aes(y = ID, x = Count),
+             colour = "black", fill = "black", offset = 0.014,width = 0.02)
+
+```
+
+### RING 4: Add siRNA TPM Info
+
+```{r ring4-srna-tpm}
+
+## Read TPM data 
+sRNA_temp <- read.xlsx("TPM_21_PPR_all_accs.xlsx", sheet = 2)
+rownames(sRNA_temp) <- sRNA_temp$ID
+sRNA_temp$ID <- NULL
+sRNA_temp$Average <- NULL
+
+## Replace NA with 0 and log2-transform 
+sRNA_temp[] <- lapply(sRNA_temp, function(x) as.numeric(as.character(x)))
+sRNA_temp <- replace(sRNA_temp, is.na(sRNA_temp), 0)
+sRNA_temp <- log2(sRNA_temp + 1)
+
+## Melt data and replace NA to 0
+sRNA_temp$ID <- rownames(sRNA_temp)
+sRNA_temp <- melt(sRNA_temp, id.vars = "ID", variable.name = "Accession", value.name = "Abundance")
+sRNA_temp$Abundance <- ifelse(is.na(sRNA_temp$Abundance), 0, sRNA_temp$Abundance)
+
+## Add siRNA TPM info
+p <- p + new_scale_fill() +
+  geom_fruit(data = sRNA_temp, geom = geom_tile,
+             mapping = aes(y = ID, x = Accession, alpha = Abundance, fill = Accession),
+             color = "white", offset = 0.012, size = 0.2) +
+  scale_fill_manual(values=c("An-1" = "#0000FF", "Col-0" = "#FFA500", "Ct-1" = "#FF0000",
+                             "Cvi-1" = "#800000", "Eri-1" = "#000080", "Kyo-1" = "#008000",
+                             "Ler-0" = "#800080", "Sha" = "#696969"),
+                    guide = guide_legend(keywidth=2, keyheight = 2, order = 4)) +
+  scale_alpha_continuous(name = "TPM (log2)",
+                         range = c(0, 1),
+                         guide = guide_legend(keywidth = 2, keyheight = 2, order = 5,
+                                              legend.text = element_text(size = 20)))
+
+## Legend settings
+p <- p +
+  theme(legend.position = c(0.95, 0.5),
+        legend.key.size = unit(0.5, 'cm'),
+        legend.background = element_rect(fill = NA),
+        legend.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        legend.spacing.y = unit(0.5, "cm"),
+        legend.spacing.x = unit(0.5, "cm"),
+        plot.margin = unit(c(5, 5, 5, 5), "mm"))
+
+```
+
+### Save Figure
+
+```{r save-to-figure}
+
+ggsave("ath_475ppr.pep.fa.phy.contree.pdf", plot = p, width = 100, height = 100, units = "cm", limitsize = FALSE)
+
+```
+
+
+### Print Figure
+```{r fig.width=40, fig.height=40, fig.align='center'}
+p
+
+```
