@@ -22,7 +22,7 @@ library(tidytable)
 ```{r read-tree}
 
 ## Set working path
-path <- "/Users/fengli/Desktop/01.TSL/01.PPR_Proj/Fig.1b/"
+path <- "/Users/lfeng/Library/CloudStorage/OneDrive-NorwichBioScienceInstitutes/01.projects/01.PPRsiRNA/02.ath8acc/script/Fig.1b/"
 setwd(path)
 
 ## Load phylogenetic tree
