@@ -14,6 +14,7 @@ Each Jupyter Notebook script corresponds to each figure, with input files locate
 
 All software dependencies and versions are listed below: 
 
+```r
 R version 4.5.1 (2025-06-13)
 Platform: aarch64-apple-darwin23.6.0
 Running under: macOS Sonoma 14.5
@@ -57,5 +58,5 @@ loaded via a namespace (and not attached):
 [52] tidyselect_1.2.1    IRkernel_1.3.2      farver_2.1.2       
 [55] patchwork_1.3.2     htmltools_0.5.9     nlme_3.1-168       
 [58] labeling_0.4.3      compiler_4.5.1      S7_0.2.1 
-
+```
 
