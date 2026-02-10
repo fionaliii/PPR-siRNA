@@ -60,3 +60,21 @@ loaded via a namespace (and not attached):
 [58] labeling_0.4.3      compiler_4.5.1      S7_0.2.1 
 ```
 
+---
+
+## Environment setup and launch Jupyter Notebook:
+
+A conda environment file (`pprsrna.yml`) is provided in the `PPR-siRNA` repository to reproduce the analysis.
+
+```r
+
+# Create the environment from the YAML file
+conda env create -f pprsrna.yml
+
+# Activate the environment
+conda activate pprsrna
+
+# Launch Jupyter Lab
+jupyter lab
+
+```
