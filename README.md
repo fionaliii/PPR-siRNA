@@ -10,7 +10,52 @@ bioRxiv link: https://www.biorxiv.org/cgi/content/short/2025.07.20.665670v1
 
 Each Jupyter Notebook script corresponds to each figure, with input files located in the lib folder.
 
+---
 
+All software dependencies and versions are listed below: 
 
+R version 4.5.1 (2025-06-13)
+Platform: aarch64-apple-darwin23.6.0
+Running under: macOS Sonoma 14.5
+
+Matrix products: default
+BLAS:   /opt/homebrew/Cellar/openblas/0.3.30/lib/libopenblasp-r0.3.30.dylib 
+LAPACK: /opt/homebrew/Cellar/r/4.5.1/lib/R/lib/libRlapack.dylib;  LAPACK version 3.12.1
+
+locale:
+[1] en_GB.UTF-8/en_GB.UTF-8/en_GB.UTF-8/C/en_GB.UTF-8/en_GB.UTF-8
+
+time zone: America/Chicago
+tzcode source: internal
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] ggnewscale_0.5.2   ggtreeExtra_1.18.1 ggtree_3.16.3      ape_5.8-1         
+ [5] tidytable_0.11.2   openxlsx_4.2.8.1   reshape2_1.4.5     ggrepel_0.9.6     
+ [9] ggplot2_4.0.1      repr_1.1.7        
+
+loaded via a namespace (and not attached):
+ [1] yulab.utils_0.2.3   rappdirs_0.3.3      generics_0.1.4     
+ [4] tidyr_1.3.2         ggplotify_0.1.3     stringi_1.8.7      
+ [7] lattice_0.22-7      digest_0.6.39       magrittr_2.0.4     
+[10] evaluate_1.0.5      grid_4.5.1          RColorBrewer_1.1-3 
+[13] pbdZMQ_0.3-14       fastmap_1.2.0       plyr_1.8.9         
+[16] jsonlite_2.0.0      zip_2.3.3           BiocManager_1.30.27
+[19] aplot_0.2.9         purrr_1.2.0         scales_1.4.0       
+[22] lazyeval_0.2.2      textshaping_1.0.4   cli_3.6.5          
+[25] rlang_1.1.6         crayon_1.5.3        tidytree_0.4.6     
+[28] base64enc_0.1-3     withr_3.0.2         tools_4.5.1        
+[31] parallel_4.5.1      uuid_1.2-1          dplyr_1.1.4        
+[34] IRdisplay_1.1       gridGraphics_0.5-1  vctrs_0.6.5        
+[37] R6_2.6.1            lifecycle_1.0.4     stringr_1.6.0      
+[40] ggfun_0.2.0         fs_1.6.6            treeio_1.32.0      
+[43] ragg_1.5.0          pkgconfig_2.0.3     pillar_1.11.1      
+[46] gtable_0.3.6        glue_1.8.0          data.table_1.18.0  
+[49] Rcpp_1.1.0          systemfonts_1.3.1   tibble_3.3.0       
+[52] tidyselect_1.2.1    IRkernel_1.3.2      farver_2.1.2       
+[55] patchwork_1.3.2     htmltools_0.5.9     nlme_3.1-168       
+[58] labeling_0.4.3      compiler_4.5.1      S7_0.2.1 
 
 
