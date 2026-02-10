@@ -7579,11 +7579,11 @@ The following objects are masked from ‘package:base’:
     intersect, setdiff, setequal, union
 
 
-── <span class="ansi-bold">Attaching core tidyverse packages</span> ─────────────────────────────────────────────────────────────────────── tidyverse 2.0.0 ──
+── <span class="ansi-bold">Attaching core tidyverse packages</span> ───────────────────────────────────────────────────────────────────────────── tidyverse 2.0.0 ──
 <span class="ansi-green-fg">✔</span> <span class="ansi-blue-fg">forcats  </span> 1.0.1     <span class="ansi-green-fg">✔</span> <span class="ansi-blue-fg">readr    </span> 2.1.6
 <span class="ansi-green-fg">✔</span> <span class="ansi-blue-fg">lubridate</span> 1.9.4     <span class="ansi-green-fg">✔</span> <span class="ansi-blue-fg">stringr  </span> 1.6.0
 <span class="ansi-green-fg">✔</span> <span class="ansi-blue-fg">purrr    </span> 1.2.0     <span class="ansi-green-fg">✔</span> <span class="ansi-blue-fg">tidyr    </span> 1.3.2
-── <span class="ansi-bold">Conflicts</span> ───────────────────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
+── <span class="ansi-bold">Conflicts</span> ─────────────────────────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
 <span class="ansi-red-fg">✖</span> <span class="ansi-blue-fg">dplyr</span>::<span class="ansi-green-fg">filter()</span> masks <span class="ansi-blue-fg">stats</span>::filter()
 <span class="ansi-red-fg">✖</span> <span class="ansi-blue-fg">dplyr</span>::<span class="ansi-green-fg">lag()</span>    masks <span class="ansi-blue-fg">stats</span>::lag()
 <span class="ansi-red-fg">✖</span> <span class="ansi-blue-fg">dplyr</span>::<span class="ansi-green-fg">where()</span>  masks <span class="ansi-blue-fg">ape</span>::where()
@@ -7640,8 +7640,10 @@ The following objects are masked from ‘package:base’:
 
 Please cite:
 
-Guangchuang Yu. Using ggtree to visualize data on tree-like structures.
-Current Protocols in Bioinformatics. 2020, 69:e96. doi:10.1002/cpbi.96
+Shuangbin Xu, Lin Li, Xiao Luo, Meijun Chen, Wenli Tang, Li Zhan, Zehan
+Dai, Tommy T. Lam, Yi Guan, Guangchuang Yu. Ggtree: A serialized data
+object for visualization of a phylogenetic tree and annotation data.
+iMeta 2022, 1(4):e56. doi:10.1002/imt2.56
 
 
 Attaching package: ‘ggtree’
@@ -7667,16 +7669,13 @@ Zhan, T Wu, E Hu, Y Jiang, X Bo, G Yu. ggtreeExtra: Compact
 visualization of richly annotated phylogenetic data. Molecular Biology
 and Evolution. 2021, 38(9):4039-4042. doi: 10.1093/molbev/msab166
 
-Guangchuang Yu, Tommy Tsan-Yuk Lam, Huachen Zhu, Yi Guan. Two methods
-for mapping and visualizing associated data on phylogeny using ggtree.
-Molecular Biology and Evolution. 2018, 35(12):3041-3043.
-doi:10.1093/molbev/msy194
+Shuangbin Xu, Lin Li, Xiao Luo, Meijun Chen, Wenli Tang, Li Zhan, Zehan
+Dai, Tommy T. Lam, Yi Guan, Guangchuang Yu. Ggtree: A serialized data
+object for visualization of a phylogenetic tree and annotation data.
+iMeta 2022, 1(4):e56. doi:10.1002/imt2.56
 
-LG Wang, TTY Lam, S Xu, Z Dai, L Zhou, T Feng, P Guo, CW Dunn, BR
-Jones, T Bradley, H Zhu, Y Guan, Y Jiang, G Yu. treeio: an R package
-for phylogenetic tree input and output with richly annotated and
-associated data. Molecular Biology and Evolution. 2020, 37(2):599-603.
-doi: 10.1093/molbev/msz240 </span>
+G Yu. Data Integration, Manipulation and Visualization of Phylogenetic
+Trees (1st ed.). Chapman and Hall/CRC. 2022. ISBN: 9781032233574 </span>
 
 </pre>
 </div>
@@ -7983,16 +7982,70 @@ Adding another scale for <span class="ansi-green-fg">y</span>, which will replac
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=5643f359-f3a2-4958-a36e-45ce50b56ed4">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=5643f359-f3a2-4958-a36e-45ce50b56ed4">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div>
+<div class="jp-InputPrompt jp-InputArea-prompt">In [8]:</div>
 <div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-r"><pre><span></span><span class="w"> </span>
+<div class="highlight hl-r"><pre><span></span><span class="nf">sessionInfo</span><span class="p">()</span>
 </pre></div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>R version 4.5.1 (2025-06-13)
+Platform: aarch64-apple-darwin23.6.0
+Running under: macOS Sonoma 14.5
+
+Matrix products: default
+BLAS:   /opt/homebrew/Cellar/openblas/0.3.30/lib/libopenblasp-r0.3.30.dylib 
+LAPACK: /opt/homebrew/Cellar/r/4.5.1/lib/R/lib/libRlapack.dylib;  LAPACK version 3.12.1
+
+locale:
+[1] en_GB.UTF-8/en_GB.UTF-8/en_GB.UTF-8/C/en_GB.UTF-8/en_GB.UTF-8
+
+time zone: America/Chicago
+tzcode source: internal
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] ggnewscale_0.5.2   ggtreeExtra_1.18.1 ggtree_3.16.3      lubridate_1.9.4   
+ [5] forcats_1.0.1      stringr_1.6.0      purrr_1.2.0        readr_2.1.6       
+ [9] tidyr_1.3.2        tidyverse_2.0.0    tibble_3.3.0       dplyr_1.1.4       
+[13] ape_5.8-1          ggplot2_4.0.1      repr_1.1.7        
+
+loaded via a namespace (and not attached):
+ [1] yulab.utils_0.2.3   rappdirs_0.3.3      generics_0.1.4     
+ [4] ggplotify_0.1.3     stringi_1.8.7       lattice_0.22-7     
+ [7] hms_1.1.4           digest_0.6.39       magrittr_2.0.4     
+[10] evaluate_1.0.5      grid_4.5.1          timechange_0.3.0   
+[13] RColorBrewer_1.1-3  pbdZMQ_0.3-14       fastmap_1.2.0      
+[16] jsonlite_2.0.0      BiocManager_1.30.27 aplot_0.2.9        
+[19] scales_1.4.0        lazyeval_0.2.2      textshaping_1.0.4  
+[22] cli_3.6.5           rlang_1.1.6         crayon_1.5.3       
+[25] tidytree_0.4.6      base64enc_0.1-3     withr_3.0.2        
+[28] tools_4.5.1         parallel_4.5.1      tzdb_0.5.0         
+[31] uuid_1.2-1          IRdisplay_1.1       gridGraphics_0.5-1 
+[34] vctrs_0.6.5         R6_2.6.1            lifecycle_1.0.4    
+[37] ggfun_0.2.0         fs_1.6.6            treeio_1.32.0      
+[40] ragg_1.5.0          pkgconfig_2.0.3     pillar_1.11.1      
+[43] gtable_0.3.6        glue_1.8.0          Rcpp_1.1.0         
+[46] systemfonts_1.3.1   tidyselect_1.2.1    IRkernel_1.3.2     
+[49] farver_2.1.2        patchwork_1.3.2     htmltools_0.5.9    
+[52] nlme_3.1-168        labeling_0.4.3      compiler_4.5.1     
+[55] S7_0.2.1           </pre>
 </div>
 </div>
 </div>
