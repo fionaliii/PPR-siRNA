@@ -12,7 +12,7 @@ Each Jupyter Notebook script corresponds to each figure, with input files locate
 
 ---
 
-All software dependencies and versions are listed below: 
+## All software dependencies and versions:
 
 ```r
 R version 4.5.1 (2025-06-13)
